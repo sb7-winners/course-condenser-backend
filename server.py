@@ -1,3 +1,4 @@
+from require_login import require_login
 from flask import Flask, render_template,request, redirect, url_for
 from pytube import YouTube
 import ssl
@@ -57,6 +58,7 @@ def transcribe_gcs_with_word_time_offsets(speech_file):
     return response;
 
 @app.route('/download', methods=['POST'])
+@require_login
 def post_submit():
     url = request.args.get('url')
     title = YouTube(url).streams.first().default_filename.split("/")[0].replace(' ', '_').lower().split(".")[0]

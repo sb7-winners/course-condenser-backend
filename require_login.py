@@ -15,10 +15,10 @@ pb = pyrebase.initialize_app(json.load(open('creds.json')))
 def require_login(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        if not request.headers.get('authorization'):
+        if not request.args.get('authorization'):
             return {'message': 'No token provided'},400
         try:
-            user = auth.verify_id_token(request.headers['authorization'])
+            user = auth.verify_id_token(request.args.get('authorization'))
         except:
             return {'message':'Invalid token provided.'},400
         return func(*args, user, **kwargs)
