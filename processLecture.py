@@ -1,3 +1,4 @@
+from require_login import require_login
 from flask import Flask, render_template,request, redirect, url_for
 from pytube import YouTube
 import ssl
@@ -8,6 +9,11 @@ import io
 import google.cloud.storage
 from google.cloud import speech
 import requests
+import json
+from firebase_admin import firestore
+
+db = firestore.client()
+lectures_ref = db.collection('lectures')
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="./creds.json"
 ssl._create_default_https_context = ssl._create_stdlib_context
@@ -22,7 +28,7 @@ def transcribe_gcs_with_word_time_offsets(speech_file):
     bucket = storage_client.get_bucket("lecture-sum")
     blob = bucket.blob(speech_file)
     blob.upload_from_filename(speech_file)
-    gcs_uri = "gs://lecture-sum/lectures"
+    gcs_uri = "gs://lecture-sum/" + speech_file
 
     client = speech.SpeechClient()
 
@@ -52,8 +58,8 @@ def transcribe_gcs_with_word_time_offsets(speech_file):
         for word_info in alternative.words:
             transcription["Items"].append({
                 "word":word_info.word,
-                "start_time":':'.join(str(word_info.start_time).split(':')[:2]),
-                "end_time":':'.join(str(word_info.end_time).split(':')[:2])
+                "start_time":':'.join(str(word_info.start_time).split(':')[-2:]),
+                "end_time":':'.join(str(word_info.end_time).split(':')[-2:])
             })
         results.append(transcription)
     response = {
@@ -65,20 +71,30 @@ def transcribe_gcs_with_word_time_offsets(speech_file):
 def summarize(transcription):
     url = "https://bert-lecture-summarizer-5e3wsetviq-uc.a.run.app/summarize_by_ratio?ratio=0.2"
     summary = requests.post(url, data = transcription["transcript"])
-    transcription["summarized_transcript"] = summary
-    keyPoints = requests.post(url, data = transcription["transcript"])
-    transcription["key_points"] = keyPoints
+    transcription["summarized_transcript"] = summary.json()['summary']
+    url = "https://bert-lecture-summarizer-5e3wsetviq-uc.a.run.app/summarize_by_ratio?ratio=0.05"
+    key_points = requests.post(url, data = transcription["summarized_transcript"])
+    transcription["key_points"] = summary.json()['summary']
     return transcription
 
 @app.route('/processLecture', methods=['POST'])
+@require_login
 def post_submit():
-    url = request.args.get('url')
+    #find url and download the video
+    url = request.json["url"]
     title = YouTube(url).streams.first().default_filename.split("/")[0].replace(' ', '_').lower().split(".")[0]
     YouTube(url).streams.first().download(filename=title)
+    #Format into .flac and get trranscript
     song = AudioSegment.from_file(title+".mp4")
     song.export(title+".flac",format = "flac")
     transcription = transcribe_gcs_with_word_time_offsets(title+".flac")
+    #summarize
     result = summarize(transcription)
+    #update firebase
+    result["title"] = request.json['title']
+    result["course_id"] = request.json['course_id']
+    id = request.args.get('id')
+    lectures_ref.document(id).set(result)
     return result;
 
 if __name__ == '__main__':
