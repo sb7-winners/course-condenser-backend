@@ -26,5 +26,6 @@ def getByTitle():
 @lectures_api.route('/getMostRecents', methods=['GET'])
 @require_login
 def getByTime():
+    print(user.user_id)
     docs = lectures_ref.order_by(u'timestamp', direction=firestore.Query.DESCENDING).limit(5).stream()
     return jsonify(docs.to_dict()), 200
