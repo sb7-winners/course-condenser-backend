@@ -11,6 +11,7 @@ from google.cloud import speech
 import requests
 import json
 from firebase_admin import firestore
+import datetime
 
 process_lecture = Blueprint('process_lecture', __name__)
 
@@ -100,6 +101,7 @@ def post_submit():
     #update firebase
     result["title"] = request.json['title']
     result["course_id"] = request.json['course_id']
+    result["timestamp"] = datetime.datetime.now().timestamp()
     id = request.args.get('id')
     lectures_ref.document(id).set(result)
     return result;

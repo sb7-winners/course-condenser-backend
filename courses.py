@@ -21,6 +21,6 @@ def addCourse():
 
 @courses_api.route('/getAllCourses', methods=['GET'])
 def read():
-    todo_id = request.args.get('id')
+    user_id = request.args.get('user_id')
     todo = todo_ref.document(todo_id).get()
     return jsonify(todo.to_dict()), 200
