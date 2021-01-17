@@ -15,6 +15,7 @@ firebase = initialize_app(cred)
 def require_login(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
+        print(request.headers.get('Authorization'))
         if not request.headers.get('Authorization'):
             return {'message': 'No token provided'},400
         try:
