@@ -9,6 +9,7 @@ db = firestore.client()
 courses_ref = db.collection('courses')
 
 @courses_api.route('/addCourse', methods=['POST'])
+@require_login
 def addCourse():
     course_name = request.json["course_name"]
     id = request.args.get('id')
@@ -16,11 +17,13 @@ def addCourse():
 
     courses_ref.document(id).set({
         "course_id":course_id,
-        'course_name':course_name
+        "course_name":course_name,
+        "user_id":user.user_id
     })
 
 @courses_api.route('/getAllCourses', methods=['GET'])
+@require_login
 def read():
     user_id = request.args.get('user_id')
-    todo = todo_ref.document(todo_id).get()
-    return jsonify(todo.to_dict()), 200
+    courses = courses_ref.document(user_id).get()
+    return jsonify(courses.to_dict()), 200

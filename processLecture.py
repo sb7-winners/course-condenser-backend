@@ -87,6 +87,7 @@ def summarize(transcription):
     return transcription
 
 @process_lecture.route('/processLecture', methods=['POST'])
+@require_login
 def post_submit():
     #find url and download the video
     url = request.json["url"]
