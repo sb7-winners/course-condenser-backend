@@ -1,5 +1,5 @@
 from require_login import require_login
-from flask import Flask, render_template,request, redirect, url_for
+from flask import Blueprint, Flask,request, redirect, url_for
 from pytube import YouTube
 import ssl
 from os import path
@@ -12,13 +12,13 @@ import requests
 import json
 from firebase_admin import firestore
 
+process_lecture = Blueprint('process_lecture', __name__)
+
 db = firestore.client()
 lectures_ref = db.collection('lectures')
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="./creds.json"
 ssl._create_default_https_context = ssl._create_stdlib_context
-
-app = Flask(__name__)
 
 def transcribe_gcs_with_word_time_offsets(speech_file):
     """Transcribe the given audio file asynchronously and output the word time
@@ -45,26 +45,34 @@ def transcribe_gcs_with_word_time_offsets(speech_file):
 
     print("Waiting for operation to complete...")
     result = operation.result(timeout=90)
-    results = []
     full_transcript = ""
+    sentences = []
+
+    last_word = result.results[-1].alternatives[0].words[-1].word
+    if "." not in last_word:
+        result.results[-1].alternatives[0].words[-1].word += "."
     for result in result.results:
+
         alternative = result.alternatives[0]
         full_transcript += alternative.transcript
-        transcription = {
-            "Transcript":alternative.transcript,
-            "Confidence":alternative.confidence,
-            "Items":[]
-        }
+        sentence = ""
+
         for word_info in alternative.words:
-            transcription["Items"].append({
-                "word":word_info.word,
-                "start_time":':'.join(str(word_info.start_time).split(':')[-2:]),
-                "end_time":':'.join(str(word_info.end_time).split(':')[-2:])
-            })
-        results.append(transcription)
+            if sentence == "":
+                start_time = ':'.join(str(word_info.start_time).split(':')[-2:])
+            sentence += " "
+            sentence += word_info.word
+
+            if "." in word_info.word:
+                sentences.append({
+                    "start_time": start_time,
+                    "sentence":sentence
+                })
+                sentence = ""
+
     response = {
         "transcript":full_transcript,
-        "results":results
+        "sentences":sentences
     }
     return response;
 
@@ -72,13 +80,12 @@ def summarize(transcription):
     url = "https://bert-lecture-summarizer-5e3wsetviq-uc.a.run.app/summarize_by_ratio?ratio=0.2"
     summary = requests.post(url, data = transcription["transcript"])
     transcription["summarized_transcript"] = summary.json()['summary']
-    url = "https://bert-lecture-summarizer-5e3wsetviq-uc.a.run.app/summarize_by_ratio?ratio=0.05"
+    url = "https://api.smrzr.io/v1/summarize?num_sentences=7"
     key_points = requests.post(url, data = transcription["summarized_transcript"])
     transcription["key_points"] = summary.json()['summary']
     return transcription
 
-@app.route('/processLecture', methods=['POST'])
-@require_login
+@process_lecture.route('/processLecture', methods=['POST'])
 def post_submit():
     #find url and download the video
     url = request.json["url"]
@@ -96,6 +103,3 @@ def post_submit():
     id = request.args.get('id')
     lectures_ref.document(id).set(result)
     return result;
-
-if __name__ == '__main__':
-	app.run(debug=True)
