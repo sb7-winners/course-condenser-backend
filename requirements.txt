@@ -1,0 +1,16 @@
+google-api-core==1.25.0
+google-auth==1.24.0
+google-auth-oauthlib==0.4.1
+google-cloud==0.34.0
+google-cloud-core==1.5.0
+google-cloud-speech==2.0.1
+google-cloud-storage==1.35.0
+google-crc32c==1.1.1
+google-pasta==0.1.8
+google-resumable-media==1.2.0
+googleapis-common-protos==1.52.0
+Flask==1.1.1
+Flask-Compress==1.4.0
+Flask-Cors==3.0.10
+youtube-dl==2021.1.16
+pydub==0.24.1
