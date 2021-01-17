@@ -7,6 +7,7 @@ import os
 import io
 import google.cloud.storage
 from google.cloud import speech
+import requests
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"]="./creds.json"
 ssl._create_default_https_context = ssl._create_stdlib_context
@@ -61,14 +62,23 @@ def transcribe_gcs_with_word_time_offsets(speech_file):
     }
     return response;
 
-@app.route('/download', methods=['POST'])
+def summarize(transcription):
+    url = "https://bert-lecture-summarizer-5e3wsetviq-uc.a.run.app/summarize_by_ratio?ratio=0.2"
+    summary = requests.post(url, data = transcription["transcript"])
+    transcription["summarized_transcript"] = summary
+    keyPoints = requests.post(url, data = transcription["transcript"])
+    transcription["key_points"] = keyPoints
+    return transcription
+
+@app.route('/processLecture', methods=['POST'])
 def post_submit():
     url = request.args.get('url')
     title = YouTube(url).streams.first().default_filename.split("/")[0].replace(' ', '_').lower().split(".")[0]
     YouTube(url).streams.first().download(filename=title)
     song = AudioSegment.from_file(title+".mp4")
     song.export(title+".flac",format = "flac")
-    result = transcribe_gcs_with_word_time_offsets(title+".flac")
+    transcription = transcribe_gcs_with_word_time_offsets(title+".flac")
+    result = summarize(transcription)
     return result;
 
 if __name__ == '__main__':
