@@ -31,29 +31,34 @@ def transcribe_gcs_with_word_time_offsets(speech_file):
         audio_channel_count=2,
         language_code="en-US",
         enable_word_time_offsets=True,
+        enable_automatic_punctuation=True,
     )
 
     operation = client.long_running_recognize(config=config, audio=audio)
 
     print("Waiting for operation to complete...")
     result = operation.result(timeout=90)
-    response = {}
-    response["Words"] = []
+    results = []
+    full_transcript = ""
     for result in result.results:
         alternative = result.alternatives[0]
-        print("Transcript: {}".format(alternative.transcript))
-        response["Transcript"] = alternative.transcript
-        print("Confidence: {}".format(alternative.confidence))
-        response["Confidence"] = alternative.confidence
-
+        full_transcript += alternative.transcript
+        transcription = {
+            "Transcript":alternative.transcript,
+            "Confidence":alternative.confidence,
+            "Items":[]
+        }
         for word_info in alternative.words:
-            word = word_info.word
-            start_time = word_info.start_time
-            end_time = word_info.end_time
-
-            print(
-                f"Word: {word}, start_time: {start_time.total_seconds()}, end_time: {end_time.total_seconds()}"
-            )
+            transcription["Items"].append({
+                "word":word_info.word,
+                "start_time":':'.join(str(word_info.start_time).split(':')[:2]),
+                "end_time":':'.join(str(word_info.end_time).split(':')[:2])
+            })
+        results.append(transcription)
+    response = {
+        "transcript":full_transcript,
+        "results":results
+    }
     return response;
 
 @app.route('/download', methods=['POST'])
