@@ -6,6 +6,7 @@ from os import path
 from pydub import AudioSegment
 import os
 import io
+import uuid
 import google.cloud.storage
 from google.cloud import speech
 import requests
@@ -61,7 +62,8 @@ def transcribe_gcs_with_word_time_offsets(speech_file):
         for word_info in alternative.words:
             if sentence == "":
                 start_time = ':'.join(str(word_info.start_time).split(':')[-2:])
-            sentence += " "
+            if sentence != "":
+                sentence += " "
             sentence += word_info.word
 
             if "." in word_info.word:
@@ -88,7 +90,7 @@ def summarize(transcription):
 
 @process_lecture.route('/processLecture', methods=['POST'])
 @require_login
-def post_submit():
+def post_submit(user):
     #find url and download the video
     url = request.json["url"]
     title = YouTube(url).streams.first().default_filename.split("/")[0].replace(' ', '_').lower().split(".")[0]
@@ -103,6 +105,6 @@ def post_submit():
     result["title"] = request.json['title']
     result["course_id"] = request.json['course_id']
     result["timestamp"] = datetime.datetime.now().timestamp()
-    id = request.args.get('id')
+    result["url"] = url
+    id = str(uuid.uuid4())
     lectures_ref.document(id).set(result)
-    return result;

@@ -1,4 +1,5 @@
 from flask import Flask
+from flask_cors import CORS
 from processLecture import process_lecture
 from courses import courses_api
 from lectures import lectures_api
@@ -8,6 +9,8 @@ app = Flask(__name__)
 app.register_blueprint(process_lecture)
 app.register_blueprint(courses_api)
 app.register_blueprint(lectures_api)
+
+CORS(app)
 
 @app.route("/")
 def hello():
